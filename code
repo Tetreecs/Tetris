@@ -1,0 +1,168 @@
+
+# Importation des fonctions externes:
+
+from tkinter import *
+from random import randrange, choice, randint
+import Figures
+global coord_x
+global coord_y
+global position
+global image
+
+###################################################################
+# Corps du programme principal:
+
+M = 23 #Hauteur (en case)
+N = 12 #Largeur (en case)
+SIZE = 28 #Taille d'une case
+results=0
+position=0
+
+#Création du canvas
+root = Tk()
+root.attributes("-fullscreen", 1)
+root.title("Tetreecs 0.2 beta")
+largeur = N * SIZE
+hauteur = M * SIZE
+
+#Tableau des scores
+results = IntVar()
+Label(root, text='Score :').grid()
+Label(root, textvariable=results).grid()
+canvas = Canvas(root, width=largeur, height=hauteur, bg="#000040")
+canvas.grid()
+
+
+#The images of blocks I import
+R=PhotoImage(file="cuberouge.gif")
+J=PhotoImage(file="cubejaune.gif")
+B=PhotoImage(file="cubebleu.gif")
+V=PhotoImage(file="cubevert.gif")
+Vi=PhotoImage(file="cubeviolet.gif")
+C=PhotoImage(file="cubecristal.gif")
+M=PhotoImage(file="cubemechant.gif")
+A=PhotoImage(file="cubeamour.gif")
+IMAGES = R, J, B, V, Vi, C, M, A
+
+coord_x=6*SIZE
+coord_y=SIZE/2
+
+###################################################################
+# Définition des fonctions locales:
+
+#Création du carré 
+def create_square(image, x, y, types):
+    #image = choice(IMAGES) #Donne une couleur aléatoire
+    #x = 6 * SIZE
+    canvas.create_image(x, y, image = image, tag = types) #Création du carré
+    
+
+#Création d'une figure
+def create_figure(figure, image, types):
+    for i in figure:
+        create_square(image, coord_x+i[0]*SIZE, coord_y+i[1]*SIZE, types)
+
+def test_deplacement(figure):
+    global coord_x, coord_y
+    superposition=0
+    debordement=False
+    for i in figure:
+        superposition+=len(canvas.find_overlapping(coord_x+i[0]*SIZE,coord_y+i[1]*SIZE,coord_x+i[0]*SIZE,coord_y+i[1]*SIZE))
+        debordement=not(coord_x+i[0]*SIZE<=SIZE or coord_x+i[0]*SIZE>=largeur-SIZE or coord_y+i[1]*SIZE>hauteur)
+    return superposition==0 and debordement
+
+time=1000
+
+#Déplacement de la figure
+def do_move(delay=time):
+    global encore_do_move
+    global coord_x
+    global coord_y
+    global position
+    global nbFormes, Forme
+    global image
+    encore_do_move = True
+    image=canvas.itemcget('figure','image')
+    if test_deplacement(Figures.piece[Forme][position][2])==False: #Si arrivée en bas ou bloc en dessous alors:
+        if coord_y==SIZE: #Si le bloc se trouve tout en haut
+            #game over
+            canvas.create_text(largeur//4,hauteur//2,text="GAME OVER")
+            #canvas.create_image(coordx[0], coordx[1], image=canvas.itemcget('figure','image'), tag='bloc') #Fait apparaitre un bloc tout en haut parce que sinon c'est moche
+            create_figure(Figures.piece[Forme][position][1], image, 'bloc')
+            canvas.delete('figure')
+            encore_do_move = False #Arrêt du programme
+        else:
+            #Fait apparaitre un carré à la place de l'autre
+            #canvas.create_image(coordx[0], coordx[1], image = canvas.itemcget('figure','image'), tag='bloc')
+            create_figure(Figures.piece[Forme][position][1], image, 'bloc')
+            canvas.delete('figure') #Fait disparaitre le carré qui descendait
+
+            if len(canvas.find_overlapping(0, hauteur-SIZE+1, largeur, hauteur-1))==10: #Si la ligne du bas est complète
+                canvas.addtag_overlapping('ligne', 0, hauteur-SIZE+1, largeur, hauteur-1) #Fait disparaître la ligne
+                canvas.delete('ligne')
+
+                #Rajoute un point
+                results.set(results.get() + 1)
+                canvas.move('bloc', 0, SIZE)
+            coord_x=6*SIZE
+            coord_y=SIZE/2
+            position=0
+            Forme=randint(0,nbFormes)
+            image = choice(IMAGES)
+            create_figure(Figures.piece[Forme][position][1], image, 'figure') #Créer un nouveau carré qui descend
+    if encore_do_move:
+        root.after(delay, do_move) #Répète cette action à l'infini
+            
+    canvas.move('figure', 0, SIZE)
+    coord_y+=SIZE
+
+def gauche(event):
+    global coord_x
+    global position
+    #global Forme
+    if test_deplacement(Figures.piece[Forme][position][3]) and encore_do_move==True:
+        canvas.move('figure', -SIZE, 0) #Déplacement à gauche
+        coord_x-=SIZE
+
+def droite(event):
+    global coord_x
+    global position
+    global Forme
+    if test_deplacement(Figures.piece[Forme][position][4]) and encore_do_move==True:
+        canvas.move('figure', SIZE, 0) #Déplacement à droite
+        coord_x+=SIZE
+
+def bas(event):
+    global coord_y
+    global position
+    global Forme
+    if test_deplacement(Figures.piece[Forme][position][2]) and encore_do_move==True:
+        canvas.move('figure', 0, SIZE) #Déplacement vers le bas
+        coord_y+=SIZE
+
+def rotation(event):
+    global position
+    global image
+    global Forme
+    if test_deplacement(Figures.piece[Forme][position][0]) and encore_do_move==True:
+        canvas.delete('figure')
+        position=(position+1)%4
+        create_figure(Figures.piece[Forme][position][1], image, 'figure')
+
+def sortie(event):
+    root.destroy()
+
+
+#Association des touches aux commandes
+root.bind("<Left>", gauche)
+root.bind("<Right>", droite)
+root.bind('<Down>', bas)
+root.bind("<Up>", rotation)
+root.bind('<Escape>', sortie)
+
+nbFormes=3
+Forme=randint(0,nbFormes)
+image = choice(IMAGES)
+create_figure(Figures.piece[Forme][position][1], image, 'figure')
+do_move()
+root.mainloop()
